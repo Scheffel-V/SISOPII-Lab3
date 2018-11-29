@@ -13,6 +13,7 @@
 #define MAXLINE 200
 #define MAXTHREADS 10
 void *atenderCliente(void *connectionsocket);
+void *printaArquivo();
 sem_t semaphore;
 
 int main(){
@@ -66,6 +67,8 @@ int main(){
    printf("Servidor escutando na porta: %d .\n", PORTNUMBER);
 
    //Servidor fica em loop para receber conexoes
+   pthread_create(&threads[contador], NULL, printaArquivo, NULL);
+   contador++;
    while(1){
       socketsize = sizeof(client_addr);
 
@@ -91,29 +94,87 @@ void *atenderCliente(void * connectionsocket) {
   int tams;
   char buffer[MAXLINE];
   FILE *file;
-
+  label3:
   printf("Esperando mensagem do cliente...\n");
   tamr = read(*(int *)connectionsocket, buffer, MAXLINE);
-  buffer[tamr] = '\0';
-  printf("Cliente enviou mensagem %s\n", buffer);
-  sleep(2);
 
-  printf("Escrevendo no arquivo...\n");
-  file = fopen("arquivo.txt", "a");
-  sem_wait(&semaphore);
-  fprintf(file, "%s", buffer);
-  fprintf(file, "\n");
-  fclose(file);
-  sem_post(&semaphore);
-  printf("Escrito!\n");
-  sleep(2);
-  printf("Enviando a mensagem 'ack'\n");
-  strcpy(buffer, "ack");
-  tams = write(*(int *)connectionsocket,buffer,strlen(buffer));
-  if(tams == strlen(buffer)){
-     printf("Mensagem enviada. \n");
-  }else{
-     printf("Erro no cliente.\n");
+  if(tamr == -1) {
+    printf("Erro ao receber mensagem do cliente...\n");
+    printf("Enviando 'err' para o cliente...\n");
+    strcpy(buffer, "err");
+    tams = write(*(int *)connectionsocket,buffer,strlen(buffer));
+    if(tams == strlen(buffer)){
+      printf("Mensagem enviada. \n");
+    }else{
+      printf("Erro no cliente.\n");
+    }
+    close(*(int *)connectionsocket);
+
+  } else {
+
+      buffer[tamr] = '\0';
+      printf("Cliente enviou mensagem %s\n", buffer);
+      sleep(2);
+      if(strcmp(buffer, "consulta") == 0) {
+        printf("Enviando os dados da tabela para o cliente...\n");
+
+        sem_wait(&semaphore);
+        file = fopen("arquivo.txt", "rb");
+        fseek(file, 0, SEEK_END);
+        long fsize = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        char *string = malloc(fsize + 1);
+        fread(string, fsize, 1, file);
+        string[fsize] = '\0';
+        fclose(file);
+        sem_post(&semaphore);
+
+        strcpy(buffer, string);
+          tams = write(*(int *)connectionsocket,buffer,strlen(buffer));
+          if(tams == strlen(buffer)){
+             printf("Mensagem enviada. \n");
+          }else{
+             printf("Erro no cliente.\n");
+          }
+
+      } else {
+          printf("Escrevendo no arquivo...\n");
+          file = fopen("arquivo.txt", "a");
+          sem_wait(&semaphore);
+          fprintf(file, "%s", buffer);
+          fprintf(file, "\n");
+          fclose(file);
+          sem_post(&semaphore);
+          printf("Escrito!\n");
+          sleep(2);
+          printf("Enviando a mensagem 'ack'\n");
+          strcpy(buffer, "ack");
+          tams = write(*(int *)connectionsocket,buffer,strlen(buffer));
+          if(tams == strlen(buffer)){
+             printf("Mensagem enviada. \n");
+          }else{
+             printf("Erro no cliente.\n");
+          }
+          goto label3;
+      }
+      close(*(int *)connectionsocket);
   }
-  close(*(int *)connectionsocket);
+}
+
+void *printaArquivo() {
+    char str[1000];
+    label2:
+    sleep(10);
+    FILE *file;
+    sem_wait(&semaphore);
+    printf("\nPrintando arquivo:\n");
+    file = fopen("arquivo.txt", "r");
+    while(fgets(str, 1000, file)) {
+        printf("%s", str);
+    }
+    fclose(file);
+    printf("\n");
+    sem_post(&semaphore);
+    goto label2;
 }

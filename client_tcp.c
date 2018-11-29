@@ -62,7 +62,25 @@ int main(){
    buffer[tamr] = '\0';
    printf("Servidor enviou mensagem %s\n", buffer);
    if(strcmp(buffer, "ack") == 0) {
-     printf("Servidor enviou 'ack', fechando a conexão...\n");
+     printf("Servidor enviou 'ack'...\n");
+
+     strcpy(buffer, "consulta");
+     sleep(2);
+     printf("Enviando mensagem 'consulta'...\n");
+     printf("Mensagem a ser enviada: %s\n", buffer);
+     tams = write(clientSock,buffer,strlen(buffer));
+     if(tams == strlen(buffer)){
+        printf("Mensagem enviada. \n");
+     }else{
+        printf("Erro no servidor.\n");
+     }
+     printf("Esperando resposta do servidor...\n");
+     tamr = read(clientSock, buffer, MAXLINE);
+     buffer[tamr] = '\0';
+     printf("Servidor enviou mensagem %s\n", buffer);
+
+     printf("Fechando a conexão...\n");
+
      conn = close(clientSock);
      printf("Cliente ecerrado. \n");
      exit(0);
